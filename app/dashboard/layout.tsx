@@ -14,6 +14,7 @@ const TABS: { label: string; href: string; icon: IconName }[] = [
   { label: "Payments", href: "/dashboard/payments", icon: "card" },
 ];
 
+const REPORTS_TAB = { label: "Reports", href: "/dashboard/reports", icon: "chart" as IconName };
 const TEAM_TAB = { label: "Team", href: "/dashboard/team", icon: "shield" as IconName };
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -121,7 +122,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
 
           <nav className="mt-6 space-y-1" aria-label="Main">
-            {[...TABS, TEAM_TAB].map((item) => (
+            {[...TABS, REPORTS_TAB, TEAM_TAB].map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
@@ -155,8 +156,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             className="flex items-center justify-between border-b bg-white px-5 py-3 lg:hidden"
             style={{ borderColor: "var(--line)" }}
           >
-            <p className="truncate text-sm font-semibold">{info.name}</p>
-            <div className="flex items-center gap-4">
+            <p className="min-w-0 flex-1 truncate pr-3 text-sm font-semibold">{info.name}</p>
+            <div className="flex shrink-0 items-center gap-4">
+              <Link href="/dashboard/reports" className="text-btn">
+                Reports
+              </Link>
               <Link href="/dashboard/team" className="text-btn">
                 Team
               </Link>

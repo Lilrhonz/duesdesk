@@ -33,7 +33,7 @@ const SERVICES: {
   { label: "Import CSV", icon: "upload", href: "/dashboard/members?action=import", edit: true },
   { label: "Receipts", icon: "receipt", href: "/dashboard/payments" },
   { label: "Members", icon: "users", href: "/dashboard/members" },
-  { label: "Reports", icon: "chart", soon: true },
+  { label: "Reports", icon: "chart", href: "/dashboard/reports" },
   { label: "Invite staff", icon: "plusCircle", href: "/dashboard/team?action=invite", admin: true },
 ];
 
