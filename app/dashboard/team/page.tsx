@@ -35,15 +35,73 @@ async function copyText(text: string) {
 
 const linkFor = (token: string) => `${window.location.origin}/join?token=${token}`;
 
+function shareMessage(orgName: string, role: string, email: string, link: string) {
+  return `You've been invited to join ${orgName} on DuesDesk as ${roleLabel(role)}. Open this link, then log in or sign up with ${email}: ${link}`;
+}
+const whatsappHref = (message: string) => `https://wa.me/?text=${encodeURIComponent(message)}`;
+const mailHref = (email: string, orgName: string, message: string) =>
+  `mailto:${email}?subject=${encodeURIComponent(`Invitation to join ${orgName} on DuesDesk`)}&body=${encodeURIComponent(message)}`;
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_AT_ONCE = 50;
+
 /* ------------------------------------------------------------------ */
-/* Invite modal                                                        */
+/* Share buttons (Copy, WhatsApp, Email)                               */
 /* ------------------------------------------------------------------ */
+
+function ShareActions({
+  email,
+  token,
+  role,
+  orgName,
+  onCopied,
+}: {
+  email: string;
+  token: string;
+  role: string;
+  orgName: string;
+  onCopied?: (ok: boolean) => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const link = linkFor(token);
+  const message = shareMessage(orgName, role, email, link);
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+      <button
+        type="button"
+        className="text-btn"
+        onClick={async () => {
+          const ok = await copyText(link);
+          setCopied(ok);
+          onCopied?.(ok);
+        }}
+      >
+        {copied ? "Copied" : "Copy link"}
+      </button>
+      <a className="text-btn" href={whatsappHref(message)} target="_blank" rel="noopener noreferrer">
+        WhatsApp
+      </a>
+      <a className="text-btn" href={mailHref(email, orgName, message)}>
+        Email
+      </a>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Invite modal (one or many people)                                   */
+/* ------------------------------------------------------------------ */
+
+type Created = { email: string; token: string };
+type Skipped = { email: string; reason: string };
 
 function InviteModal({
   supabase,
   orgId,
   orgName,
   existingEmails,
+  pendingEmails,
   onClose,
   onCreated,
 }: {
@@ -51,23 +109,43 @@ function InviteModal({
   orgId: string;
   orgName: string;
   existingEmails: string[];
+  pendingEmails: string[];
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("treasurer");
+  const [text, setText] = useState("");
+  const [role, setRole] = useState("viewer");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [link, setLink] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [created, setCreated] = useState<Created[] | null>(null);
+  const [skipped, setSkipped] = useState<Skipped[]>([]);
+  const [usedRole, setUsedRole] = useState("viewer");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const clean = email.trim().toLowerCase();
 
-    if (existingEmails.includes(clean)) {
-      setError(`${clean} is already on the team.`);
+    const raw = Array.from(new Set(text.split(/[\s,;]+/).map((s) => s.trim().toLowerCase()).filter(Boolean)));
+    if (raw.length === 0) {
+      setError("Enter at least one email address.");
+      return;
+    }
+    if (raw.length > MAX_AT_ONCE) {
+      setError(`Please invite at most ${MAX_AT_ONCE} people at a time.`);
+      return;
+    }
+
+    const toCreate: string[] = [];
+    const skippedList: Skipped[] = [];
+    for (const email of raw) {
+      if (!EMAIL_PATTERN.test(email)) skippedList.push({ email, reason: "isn't a valid email address" });
+      else if (existingEmails.includes(email)) skippedList.push({ email, reason: "is already on the team" });
+      else if (pendingEmails.includes(email)) skippedList.push({ email, reason: "already has a pending invitation" });
+      else toCreate.push(email);
+    }
+
+    if (toCreate.length === 0) {
+      setError(skippedList.map((s) => `${s.email} ${s.reason}.`).join(" "));
       return;
     }
 
@@ -77,50 +155,55 @@ function InviteModal({
     } = await supabase.auth.getUser();
     const { data, error: insertError } = await supabase
       .from("invitations")
-      .insert({ org_id: orgId, email: clean, role, invited_by: user?.id ?? null })
-      .select("token")
-      .single();
+      .insert(toCreate.map((email) => ({ org_id: orgId, email, role, invited_by: user?.id ?? null })))
+      .select("email, token");
 
     if (insertError || !data) {
       setError(
         insertError?.code === "23505"
-          ? `${clean} already has a pending invitation. Copy its link from the list, or revoke it first.`
+          ? "One of these people already has a pending invitation. Refresh the page and try again."
           : messageOf(insertError)
       );
       setSaving(false);
       return;
     }
 
-    setLink(linkFor(data.token as string));
+    setCreated(data.map((r) => ({ email: r.email as string, token: r.token as string })));
+    setSkipped(skippedList);
+    setUsedRole(role);
     setSaving(false);
     onCreated();
   }
 
-  async function copy() {
-    if (!link) return;
-    setCopied(await copyText(link));
-  }
-
-  if (link) {
+  if (created) {
     return (
-      <Modal title="Invitation ready" onClose={onClose}>
+      <Modal title={created.length === 1 ? "Invitation ready" : `${created.length} invitations ready`} onClose={onClose} wide>
         <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
-          Send this link to <b style={{ color: "var(--ink)" }}>{email.trim().toLowerCase()}</b>. They log in
-          or sign up with that email, then tap Join. It only works for that address and expires in 7 days.
+          Send each person their own link. It only works for their email address and expires in 7 days.
         </p>
-        <input
-          className="field mt-4"
-          readOnly
-          value={link}
-          onFocus={(e) => e.currentTarget.select()}
-          aria-label="Invitation link"
-        />
-        <div className="mt-5 flex justify-end gap-2">
-          <button type="button" className="btn-outline" onClick={onClose}>
+
+        <ul className="mt-4 overflow-hidden rounded-xl border" style={{ borderColor: "var(--line)" }}>
+          {created.map((c) => (
+            <li
+              key={c.token}
+              className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 first:border-t-0"
+              style={{ borderColor: "var(--line)" }}
+            >
+              <span className="min-w-0 truncate text-sm font-semibold">{c.email}</span>
+              <ShareActions email={c.email} token={c.token} role={usedRole} orgName={orgName} />
+            </li>
+          ))}
+        </ul>
+
+        {skipped.length > 0 && (
+          <p className="mt-4 text-xs leading-relaxed" style={{ color: "var(--muted)" }}>
+            Skipped: {skipped.map((s) => `${s.email} ${s.reason}`).join("; ")}.
+          </p>
+        )}
+
+        <div className="mt-5 flex justify-end">
+          <button type="button" className="btn" onClick={onClose}>
             Done
-          </button>
-          <button type="button" className="btn" onClick={copy}>
-            {copied ? "Copied" : "Copy link"}
           </button>
         </div>
       </Modal>
@@ -130,21 +213,25 @@ function InviteModal({
   const hint = ROLES.find((r) => r.value === role)?.hint;
 
   return (
-    <Modal title={`Invite someone to ${orgName}`} onClose={onClose}>
+    <Modal title={`Invite people to ${orgName}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="label" htmlFor="i-email">
-            Their email
+          <label className="label" htmlFor="i-emails">
+            Email addresses
           </label>
-          <input
-            id="i-email"
+          <textarea
+            id="i-emails"
             className="field"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            rows={4}
+            placeholder={"name@example.com\nanother@example.com"}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
             required
             autoFocus
           />
+          <p className="mt-1.5 text-xs" style={{ color: "var(--muted)" }}>
+            One per line, or separated by commas. Up to {MAX_AT_ONCE} at once, all with the same role.
+          </p>
         </div>
 
         <div>
@@ -174,7 +261,7 @@ function InviteModal({
             Cancel
           </button>
           <button type="submit" className="btn" disabled={saving}>
-            {saving ? "Creating..." : "Create invitation"}
+            {saving ? "Creating..." : "Create invitations"}
           </button>
         </div>
       </form>
@@ -296,16 +383,6 @@ export default function TeamPage() {
       setNotice(`Revoked the invitation for ${inv.email}.`);
     }
     await load();
-  }
-
-  async function copyInvite(inv: Invite) {
-    const ok = await copyText(linkFor(inv.token));
-    setPageError(null);
-    setNotice(
-      ok
-        ? `Link for ${inv.email} copied. Send it to them.`
-        : "Couldn't copy automatically. Revoke and create the invitation again to see the link."
-    );
   }
 
   return (
@@ -435,11 +512,14 @@ export default function TeamPage() {
                           {expired ? "expired" : `expires ${formatTimestamp(inv.expires_at)}`}
                         </p>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                         {!expired && (
-                          <button type="button" className="text-btn" onClick={() => copyInvite(inv)}>
-                            Copy link
-                          </button>
+                          <ShareActions
+                            email={inv.email}
+                            token={inv.token}
+                            role={inv.role}
+                            orgName={org.name}
+                          />
                         )}
                         <button type="button" className="text-btn-danger" onClick={() => revoke(inv)}>
                           Revoke
@@ -460,6 +540,7 @@ export default function TeamPage() {
           orgId={org.id}
           orgName={org.name}
           existingEmails={people.map((p) => (p.email ?? "").toLowerCase()).filter(Boolean)}
+          pendingEmails={invites.map((i) => i.email.toLowerCase())}
           onClose={() => setInviting(false)}
           onCreated={load}
         />
