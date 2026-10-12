@@ -1,0 +1,205 @@
+/* DuesDesk design tokens and shared form styles */
+:root {
+  --brand: #0b5d5e;
+  --brand-deep: #08403f;
+  --brand-tint: #e3f0ef;
+  --ink: #12202b;
+  --muted: #5b6b78;
+  --paper: #f5f7f9;
+  --surface: #ffffff;
+  --line: #dce3e8;
+  --amber: #b56a00;
+  --amber-tint: #fbf0dc;
+  --ok: #1e7f4f;
+  --danger: #b3261e;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.field {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+.field:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(11, 93, 94, 0.15);
+  outline: none;
+}
+
+.btn-primary {
+  width: 100%;
+  background: var(--brand);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.btn-primary:hover {
+  background: var(--brand-deep);
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.link-quiet {
+  color: var(--brand);
+  font-weight: 600;
+}
+.link-quiet:hover {
+  text-decoration: underline;
+}
+
+.msg-error {
+  border: 1px solid #f0c6c3;
+  background: #fdf0ef;
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.875rem;
+}
+.msg-ok {
+  border: 1px solid #bfe0cd;
+  background: #eef8f2;
+  color: var(--ok);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.875rem;
+}
+
+/* Buttons that size to their content */
+.btn {
+  background: var(--brand);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.btn:hover {
+  background: var(--brand-deep);
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn-outline {
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.btn-outline:hover {
+  background: var(--paper);
+}
+.btn-outline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.text-btn {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--brand);
+}
+.text-btn:hover {
+  text-decoration: underline;
+}
+.text-btn-danger {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--danger);
+}
+.text-btn-danger:hover {
+  text-decoration: underline;
+}
+
+/* Printing a receipt: show only the receipt */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 24px;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Mobile-app style surfaces */
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand-deep) 0%, var(--brand) 100%);
+  box-shadow: 0 10px 24px -12px rgba(8, 64, 63, 0.6);
+}
+
+.tile-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid var(--line);
+  color: var(--brand);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+a:hover > .tile-box {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px -8px rgba(18, 32, 43, 0.35);
+}
+
+.avatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--brand-tint);
+  color: var(--brand-deep);
+  font-weight: 700;
+}
